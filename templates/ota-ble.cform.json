@@ -1,0 +1,229 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters": {
+    "S3BucketNameParameter": {
+      "Type": "String",
+      "Default": "afr-ble-ota-update-bucket-sample",
+      "Description": "Enter new S3 bucket name"
+    },
+    "IoTRoleNameParameter": {
+      "Type": "String",
+      "Default": "ota_ble_iot_role-sample",
+      "Description": "Enter new role name for IoT transactions"
+    },
+    "IoTPassRolePolicyNameParameter": {
+      "Type": "String",
+      "Default": "ota_ble_iot_iam_passrole_policy-sample",
+      "Description": "Enter new policy name to assume IoT permissions"
+    },
+    "S3AccessPolicyNameParameter": {
+      "Type": "String",
+      "Default": "ota_ble_iot_s3access_policy-sample",
+      "Description": "Enter new policy name to assume S3 permissions"
+    },
+    "OTAUserNameParameter": {
+      "Type": "String",
+      "Default": "ota-update-user-sample",
+      "Description": "Enter name for new user that can perform OTA Updates"
+    }
+  },
+  "Resources": {
+    "s3afrbleotaupdatebucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "AccessControl": "Private",
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "BucketName": {
+          "Ref": "S3BucketNameParameter"
+        }
+      }
+    },
+    "iamafrbleotaiotrole": {
+      "Type": "AWS::IAM::Role",
+      "DependsOn": "s3afrbleotaupdatebucket",
+      "Properties": {
+        "RoleName": {
+          "Ref": "IoTRoleNameParameter"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Principal": {
+                "Service": "iot.amazonaws.com"
+              },
+              "Effect": "Allow",
+              "Sid": ""
+            }
+          ]
+        },
+        "Path": "/",
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSIoTThingsRegistration",
+          "arn:aws:iam::aws:policy/service-role/AWSIoTLogging",
+          "arn:aws:iam::aws:policy/service-role/AmazonFreeRTOSOTAUpdate",
+          "arn:aws:iam::aws:policy/service-role/AWSIoTRuleActions"
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Action": [
+                    "iam:GetRole",
+                    "iam:PassRole"
+                  ],
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:iam::",
+                        {
+                          "Ref": "AWS::AccountId"
+                        },
+                        ":role/",
+                        {
+                          "Ref": "IoTRoleNameParameter"
+                        }
+                      ]
+                    ]
+                  },
+                  "Effect": "Allow"
+                }
+              ]
+            },
+            "PolicyName": {
+              "Ref": "IoTPassRolePolicyNameParameter"
+            }
+          },
+          {
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Action": [
+                    "s3:GetObjectVersion",
+                    "s3:GetObject"
+                  ],
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        {
+                          "Ref": "S3BucketNameParameter"
+                        },
+                        "/*"
+                      ]
+                    ]
+                  },
+                  "Effect": "Allow"
+                }
+              ]
+            },
+            "PolicyName": {
+              "Ref": "S3AccessPolicyNameParameter"
+            }
+          }
+        ]
+      }
+    },
+    "otauser": {
+      "Type": "AWS::IAM::User",
+      "Properties": {
+        "UserName": {
+          "Ref": "OTAUserNameParameter"
+        }
+      }
+    },
+    "otauserpolicies": {
+      "Type": "AWS::IAM::Policy",
+      "DependsOn": "otauser",
+      "Properties": {
+        "Users": [
+          {
+            "Ref": "OTAUserNameParameter"
+          }
+        ],
+        "PolicyName": "otauserpolicies",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket",
+                "s3:ListAllMyBuckets",
+                "s3:GetBucketLocation",
+                "s3:GetObjectVersion",
+                "acm:ImportCertificate",
+                "acm:ListCertificates",
+                "iot:*",
+                "iam:ListRoles",
+                "freertos:ListHardwarePlatforms",
+                "freertos:DescribeHardwarePlatform"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:*"
+              ],
+              "Resource": "arn:aws:s3:::afr-ble-ota-update-bucket-sample/*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucketVersions"
+              ],
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:s3:::",
+                    {
+                      "Ref": "S3BucketNameParameter"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": "iam:PassRole",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:iam::",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":role/",
+                    {
+                      "Ref": "IoTRoleNameParameter"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "signer:*"
+              ],
+              "Resource": [
+                "*"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
