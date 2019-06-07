@@ -1,4 +1,4 @@
-## Amazon Freertos Ota Scripts
+## Amazon Freertos OTA Scripts
 
 Scripts to aid initiating OTA updates for Amazon FreeRTOS devices.
 
