@@ -76,4 +76,4 @@ Before you distribute the CloudFormation template to your organization, review t
 
 ## License Summary
 
-This sample code is made available under the Apache 2.0 license. See the LICENSE file.
+This sample code is made available under the MIT-0 license. See the LICENSE file.
