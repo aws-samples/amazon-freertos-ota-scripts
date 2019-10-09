@@ -1,8 +1,8 @@
 diff --git a/demos/ota/aws_iot_ota_update_demo.c b/demos/ota/aws_iot_ota_update_demo.c
-index c4caf22a5..b836971cf 100644
+index c4caf22a5..257dc9be7 100644
 --- a/demos/ota/aws_iot_ota_update_demo.c
 +++ b/demos/ota/aws_iot_ota_update_demo.c
-@@ -198,6 +198,208 @@ static const char * pcStateStr[ eOTA_NumAgentStates ] =
+@@ -198,10 +198,224 @@ static const char * pcStateStr[ eOTA_NumAgentStates ] =
      "Shutting down"
  };
  
@@ -211,3 +211,28 @@ index c4caf22a5..b836971cf 100644
  void vRunOTAUpdateDemo( void )
  {
      IotMqttConnectInfo_t xConnectInfo = IOT_MQTT_CONNECT_INFO_INITIALIZER;
+     OTA_State_t eState;
++    OTA_PAL_Callbacks_t otaCallbacks = { \
++        .xAbort                    = prvPAL_Abort_customer, \
++        .xActivateNewImage         = prvPAL_ActivateNewImage_customer,\
++        .xCloseFile                = prvPAL_CloseFile_customer, \
++        .xCreateFileForRx          = prvPAL_CreateFileForRx_customer, \
++        .xGetPlatformImageState    = prvPAL_GetPlatformImageState_customer, \
++        .xResetDevice              = prvPAL_ResetDevice_customer, \
++        .xSetPlatformImageState    = prvPAL_SetPlatformImageState_customer, \
++        .xWriteBlock               = prvPAL_WriteBlock_customer, \
++        .xCompleteCallback         = App_OTACompleteCallback, \
++        .xCustomJobCallback        = otaDemoCustomJobCallback \
++    };
+ 
+     configPRINTF( ( "OTA demo version %u.%u.%u\r\n",
+                     xAppFirmwareVersion.u.x.ucMajor,
+@@ -241,7 +455,7 @@ void vRunOTAUpdateDemo( void )
+                                  otaDemoCONN_TIMEOUT_MS, &( xConnection.xMqttConnection ) ) == IOT_MQTT_SUCCESS )
+             {
+                 configPRINTF( ( "Connected to broker.\r\n" ) );
+-                OTA_AgentInit( xConnection.xMqttConnection, ( const uint8_t * ) ( clientcredentialIOT_THING_NAME ), App_OTACompleteCallback, ( TickType_t ) ~0 );
++                OTA_AgentInit_internal( xConnection.xMqttConnection, ( const uint8_t * ) ( clientcredentialIOT_THING_NAME ), &otaCallbacks, ( TickType_t ) ~0 );
+ 
+                 while( ( eState = OTA_GetAgentState() ) != eOTA_AgentState_NotReady )
+                 {
