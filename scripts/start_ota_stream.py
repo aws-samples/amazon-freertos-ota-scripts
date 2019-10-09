@@ -41,7 +41,7 @@ parser.add_argument("--signingcertificateid",
                     help="certificate id (not arn) to be used", required=True)
 parser.add_argument("--codelocation", help="base FreeRTOS folder location (can be relative) when fileId is 0",
                     default="../code/amazon-freertos/", required=False)
-parser.add_argument("--filelocation", help="OTA update file location when fileId is 1",
+parser.add_argument("--filelocation", help="OTA update file location when fileId is greater than 0",
                     default="update.bin", required=False)
 args = parser.parse_args()
 
