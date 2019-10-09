@@ -1,0 +1,213 @@
+diff --git a/demos/ota/aws_iot_ota_update_demo.c b/demos/ota/aws_iot_ota_update_demo.c
+index c4caf22a5..b836971cf 100644
+--- a/demos/ota/aws_iot_ota_update_demo.c
++++ b/demos/ota/aws_iot_ota_update_demo.c
+@@ -198,6 +198,208 @@ static const char * pcStateStr[ eOTA_NumAgentStates ] =
+     "Shutting down"
+ };
+ 
++
++static OTA_PAL_ImageState_t CurrentImageState = eOTA_PAL_ImageState_Valid;
++
++// ------- PAL function declarations -------
++extern OTA_Err_t prvPAL_Abort( OTA_FileContext_t * const C );
++extern OTA_Err_t prvPAL_CreateFileForRx( OTA_FileContext_t * const C );
++extern OTA_Err_t prvPAL_CloseFile( OTA_FileContext_t * const C );
++extern int16_t prvPAL_WriteBlock( OTA_FileContext_t * const C,
++                           uint32_t ulOffset,
++                           uint8_t * const pcData,
++                           uint32_t ulBlockSize );
++extern OTA_Err_t prvPAL_ActivateNewImage( void );
++extern OTA_Err_t prvPAL_ResetDevice( void );
++extern OTA_Err_t prvPAL_SetPlatformImageState( OTA_ImageState_t eState );
++extern OTA_PAL_ImageState_t prvPAL_GetPlatformImageState( void );
++// --------
++
++OTA_JobParseErr_t otaDemoCustomJobCallback( const char * pcJSON, uint32_t ulMsgLen )
++{
++    DEFINE_OTA_METHOD_NAME( "prvDefaultCustomJobCallback" );
++    configPRINTF(("Job Found:\r\n"));
++    if ( pcJSON != NULL )
++    {
++        //Process Custom job
++    }
++
++    OTA_LOG_L1( "[%s] Received Custom Job inside OTA Demo.\r\n", OTA_METHOD_NAME );
++
++    return eOTA_JobParseErr_None;
++}
++
++
++OTA_Err_t prvPAL_Abort_customer( OTA_FileContext_t * const C )
++{
++    DEFINE_OTA_METHOD_NAME( "prvPAL_Abort_customer" );
++
++    if ( C == NULL )
++    {
++        OTA_LOG_L1( "[%s] File context null\r\n", OTA_METHOD_NAME );
++        return kOTA_Err_AbortFailed;
++    }
++
++    if ( C->ulServerFileID == 0 )
++    {
++        // Update self
++        return prvPAL_Abort( C );
++    }
++    else
++    {
++        OTA_LOG_L1( "[%s] OTA Demo for secondary processor\r\n", OTA_METHOD_NAME );
++        return kOTA_Err_None;
++    }
++}
++
++
++
++OTA_Err_t prvPAL_ActivateNewImage_customer( uint32_t ulServerFileID )
++{
++    DEFINE_OTA_METHOD_NAME( "prvPAL_ActivateNewImage_customer" );
++
++    if ( ulServerFileID == 0 )
++    {
++        // Update self
++        return prvPAL_ActivateNewImage();
++    }
++    else
++    {
++        OTA_LOG_L1( "[%s] OTA Demo for secondary processor.\r\n", OTA_METHOD_NAME );
++        // Reset self after doing cleanup
++        return prvPAL_ActivateNewImage();
++    }
++}
++
++
++OTA_Err_t prvPAL_CloseFile_customer( OTA_FileContext_t * const C )
++{
++    DEFINE_OTA_METHOD_NAME( "prvPAL_CloseFile_customer" );
++
++    if ( C->ulServerFileID == 0 )
++    {
++        // Update self
++        return prvPAL_CloseFile( C );
++    }
++    else
++    {
++        OTA_LOG_L1( "[%s] Received prvPAL_CloseFile_customer inside OTA Demo for secondary processor.\r\n", OTA_METHOD_NAME );
++        C->pucFile = (uint8_t *)0;
++        return kOTA_Err_None;
++    }
++}
++
++OTA_Err_t prvPAL_CreateFileForRx_customer( OTA_FileContext_t * const C )
++{
++    DEFINE_OTA_METHOD_NAME( "prvPAL_CreateFileForRx_customer" );
++
++    if ( C == NULL )
++    {
++        OTA_LOG_L1( "[%s] File context null\r\n", OTA_METHOD_NAME );
++        return kOTA_Err_RxFileCreateFailed;
++    }
++
++    if ( C->ulServerFileID == 0 )
++    {
++        // Update self
++        return prvPAL_CreateFileForRx( C );
++    }
++    else
++    {
++        OTA_LOG_L1( "[%s] OTA Demo for secondary processor.\r\n", OTA_METHOD_NAME );
++
++        // Put a value in the file handle
++        C->pucFile = (uint8_t *)C;
++
++        return kOTA_Err_None;
++    }
++}
++
++OTA_PAL_ImageState_t prvPAL_GetPlatformImageState_customer( uint32_t ulServerFileID )
++{
++    DEFINE_OTA_METHOD_NAME( "prvPAL_GetPlatformImageState_customer" );
++
++    if ( ulServerFileID == 0 )
++    {
++        // Update self
++        return prvPAL_GetPlatformImageState();
++    }
++    else
++    {
++        OTA_LOG_L1( "[%s] OTA Demo for secondary processor.\r\n", OTA_METHOD_NAME );
++        return CurrentImageState;
++    }
++}
++
++OTA_Err_t prvPAL_ResetDevice_customer( uint32_t ulServerFileID )
++{
++    DEFINE_OTA_METHOD_NAME( "prvPAL_ResetDevice_customer" );
++
++    if ( ulServerFileID == 0 )
++    {
++        // Update self
++        return prvPAL_ResetDevice();
++    }
++    else
++    {
++        OTA_LOG_L1( "[%s] OTA Demo for secondary processor.\r\n", OTA_METHOD_NAME );
++        return kOTA_Err_None;
++    }
++}
++
++
++
++OTA_Err_t prvPAL_SetPlatformImageState_customer( uint32_t ulServerFileID, OTA_ImageState_t eState )
++{
++    DEFINE_OTA_METHOD_NAME( "prvPAL_SetPlatformImageState_customer" );
++
++    if ( ulServerFileID == 0 )
++    {
++        // Update self
++        return prvPAL_SetPlatformImageState(eState);
++    }
++    else
++    {
++        OTA_LOG_L1( "[%s] OTA Demo for secondary processor.\r\n", OTA_METHOD_NAME );
++
++        if ( eState==eOTA_ImageState_Testing )
++        {
++            CurrentImageState = eOTA_PAL_ImageState_PendingCommit;
++        }
++
++        return kOTA_Err_None;
++    }
++}
++
++int16_t prvPAL_WriteBlock_customer( OTA_FileContext_t * const C,
++                           uint32_t iOffset,
++                           uint8_t * const pacData,
++                           uint32_t iBlockSize )
++ {
++    DEFINE_OTA_METHOD_NAME( "prvPAL_WriteBlock_customer" );
++
++    if ( C == NULL )
++    {
++        OTA_LOG_L1( "[%s] File context null\r\n", OTA_METHOD_NAME );
++        return -1;
++    }
++
++    if ( C->ulServerFileID == 0 )
++    {
++        // Update self
++        return prvPAL_WriteBlock(C, iOffset, pacData, iBlockSize);
++    }
++    else
++    {
++        OTA_LOG_L1( "[%s] OTA Demo for secondary processor.\r\n", OTA_METHOD_NAME );
++        return (int16_t) iBlockSize;
++    }
++}
++
++
++
++
++
+ void vRunOTAUpdateDemo( void )
+ {
+     IotMqttConnectInfo_t xConnectInfo = IOT_MQTT_CONNECT_INFO_INITIALIZER;
