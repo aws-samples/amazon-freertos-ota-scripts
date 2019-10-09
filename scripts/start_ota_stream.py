@@ -39,8 +39,10 @@ parser.add_argument("--otasigningprofile",
                     help="Signing profile to be created or used", required=True)
 parser.add_argument("--signingcertificateid",
                     help="certificate id (not arn) to be used", required=True)
-parser.add_argument("--codelocation", help="base folder location (can be relative)",
+parser.add_argument("--codelocation", help="base FreeRTOS folder location (can be relative) when fileId is 0",
                     default="../code/amazon-freertos/", required=False)
+parser.add_argument("--filelocation", help="OTA update file location when fileId is 1",
+                    default="update.bin", required=False)
 args = parser.parse_args()
 
 
@@ -70,25 +72,43 @@ class AWS_IoT_OTA:
         #print ( repr(constants) )
 
     def BuildFirmwareFileNames(self):
-        # Read constants from header and build the application name to be used for update
-        self.ReadConstantsFromHeader()
 
-        # We Should have the versions stored at this point. Build the App name
-        self.APP_NAME = "aws_demos_" + self.constants["APP_VERSION_MAJOR"] + "." + \
-            self.constants["APP_VERSION_MINOR"] + "." + \
-            self.constants["APP_VERSION_BUILD"] + ".bin"
-        self.APP_FULL_NAME = self.BUILD_PATH / Path(self.APP_NAME)
-        self.BUILD_FILE_FULL_NAME = self.BUILD_PATH/Path("aws_demos.bin")
-        print("Using App Location: " + str(self.APP_FULL_NAME))
-        print("Build File Name: " + str(self.BUILD_FILE_FULL_NAME))
+        # Check if we are updating Processor 0 firmware and extract the versions from
+        # the FreeRTOS header file
+        if args.fileId == 0:
+            # Read constants from header and build the application name to be used for update
+            self.ReadConstantsFromHeader()
 
-        # First make a copy of the bin file with the version in the name
-        try:
-            copyfile(self.BUILD_FILE_FULL_NAME, self.APP_FULL_NAME)
-        except Exception as e:
-            print("Error copying %s" % self.BUILD_FILE_FULL_NAME)
-            sys.exit
+            # We Should have the versions stored at this point. Build the App name
+            self.APP_NAME = "aws_demos_" + self.constants["APP_VERSION_MAJOR"] + "." + \
+                self.constants["APP_VERSION_MINOR"] + "." + \
+                self.constants["APP_VERSION_BUILD"] + ".bin"
+            self.APP_FULL_NAME = self.BUILD_PATH / Path(self.APP_NAME)
+            self.BUILD_FILE_FULL_NAME = self.BUILD_PATH/Path("aws_demos.bin")
+            print("Using App Location: " + str(self.APP_FULL_NAME))
+            print("Build File Name: " + str(self.BUILD_FILE_FULL_NAME))
 
+            # First make a copy of the bin file with the version in the name
+            try:
+                copyfile(self.BUILD_FILE_FULL_NAME, self.APP_FULL_NAME)
+            except Exception as e:
+                print("Error copying %s" % self.BUILD_FILE_FULL_NAME)
+                sys.exit
+        else:
+            try:
+                # TODO provide ability to override the version for secondary processors
+                self.constants["APP_VERSION_MAJOR"] = "0"
+                self.constants["APP_VERSION_MINOR"] = "0"
+                self.constants["APP_VERSION_BUILD"] = "0"
+                self.BUILD_FILE_FULL_NAME = args.filelocation
+                self.APP_FULL_NAME = args.filelocation
+                self.APP_NAME = args.filelocation
+                print("Using App Location: " + str(self.APP_FULL_NAME))
+                print("Build File Name: " + str(self.BUILD_FILE_FULL_NAME))
+            except Exception as e:
+                print("Error building firmware file names" % args.filelocation)
+                sys.exit
+            
     # Copy the file to the s3 bucket
 
     def CopyFirmwareFileToS3(self):
