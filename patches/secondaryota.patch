@@ -1,11 +1,12 @@
 diff --git a/demos/ota/aws_iot_ota_update_demo.c b/demos/ota/aws_iot_ota_update_demo.c
-index c4caf22a5..257dc9be7 100644
+index 37fe6c4bf..5a92f7720 100644
 --- a/demos/ota/aws_iot_ota_update_demo.c
 +++ b/demos/ota/aws_iot_ota_update_demo.c
-@@ -198,10 +198,224 @@ static const char * pcStateStr[ eOTA_NumAgentStates ] =
-     "Shutting down"
+@@ -203,12 +203,227 @@ static const char * pcStateStr[ eOTA_AgentState_All ] =
+     "Stopped"
  };
  
++
 +
 +static OTA_PAL_ImageState_t CurrentImageState = eOTA_PAL_ImageState_Valid;
 +
@@ -208,10 +209,12 @@ index c4caf22a5..257dc9be7 100644
 +
 +
 +
- void vRunOTAUpdateDemo( void )
+ void vRunOTAUpdateDemo( const IotNetworkInterface_t * pNetworkInterface,
+                         void * pNetworkCredentialInfo )
  {
      IotMqttConnectInfo_t xConnectInfo = IOT_MQTT_CONNECT_INFO_INITIALIZER;
      OTA_State_t eState;
+     OTA_ConnectionContext_t xOTAConnectionCtx = { 0 };
 +    OTA_PAL_Callbacks_t otaCallbacks = { \
 +        .xAbort                    = prvPAL_Abort_customer, \
 +        .xActivateNewImage         = prvPAL_ActivateNewImage_customer,\
@@ -227,12 +230,13 @@ index c4caf22a5..257dc9be7 100644
  
      configPRINTF( ( "OTA demo version %u.%u.%u\r\n",
                      xAppFirmwareVersion.u.x.ucMajor,
-@@ -241,7 +455,7 @@ void vRunOTAUpdateDemo( void )
-                                  otaDemoCONN_TIMEOUT_MS, &( xConnection.xMqttConnection ) ) == IOT_MQTT_SUCCESS )
-             {
-                 configPRINTF( ( "Connected to broker.\r\n" ) );
--                OTA_AgentInit( xConnection.xMqttConnection, ( const uint8_t * ) ( clientcredentialIOT_THING_NAME ), App_OTACompleteCallback, ( TickType_t ) ~0 );
-+                OTA_AgentInit_internal( xConnection.xMqttConnection, ( const uint8_t * ) ( clientcredentialIOT_THING_NAME ), &otaCallbacks, ( TickType_t ) ~0 );
+@@ -252,8 +467,7 @@ void vRunOTAUpdateDemo( const IotNetworkInterface_t * pNetworkInterface,
+                 xOTAConnectionCtx.pxNetworkInterface = ( void * ) pNetworkInterface;
+                 xOTAConnectionCtx.pvNetworkCredentials = pNetworkCredentialInfo;
  
-                 while( ( eState = OTA_GetAgentState() ) != eOTA_AgentState_NotReady )
+-                OTA_AgentInit( ( void * ) ( &xOTAConnectionCtx ), ( const uint8_t * ) ( clientcredentialIOT_THING_NAME ), App_OTACompleteCallback, ( TickType_t ) ~0 );
+-
++                OTA_AgentInit_internal( ( void * ) ( &xOTAConnectionCtx ), ( const uint8_t * ) ( clientcredentialIOT_THING_NAME ), &otaCallbacks, ( TickType_t ) ~0 );
+                 while( ( eState = OTA_GetAgentState() ) != eOTA_AgentState_Stopped )
                  {
+                     /* Wait forever for OTA traffic but allow other tasks to run and output statistics only once per second. */
