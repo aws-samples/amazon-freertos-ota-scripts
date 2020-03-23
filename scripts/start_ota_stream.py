@@ -89,17 +89,17 @@ class AWS_IoT_OTA:
         if args.otaversion:
             major, *version = str(args.otaversion).split(".")
 
-            CheckIntOrRaiseException(major)
+            self.CheckIntOrRaiseException(major)
 
             if len(version) > 0:
                 minor = version[0]
-                CheckIntOrRaiseException(minor)
+                self.CheckIntOrRaiseException(minor)
             else:
                 minor = "0"
 
             if len(version) > 1:
                 build = version[1]
-                CheckIntOrRaiseException(build)
+                self.CheckIntOrRaiseException(build)
             else:
                 build = "0"
 
