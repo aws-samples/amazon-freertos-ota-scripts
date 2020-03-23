@@ -74,25 +74,32 @@ class AWS_IoT_OTA:
         #print ( repr(constants) )
 
     """
+    Checks if a version number or raises an exception
+    """
+    def CheckIntOrRaiseException(self, value):
+        try:
+            int(value)
+        except ValueError:
+            raise Exception("Error value %s can't be converted to integer" % value)
+
+    """
     Converts the passed in ota version to major, minor, and build version
     """
     def ConvertOTAVersionToMajorMinorBuild(self):
         if args.otaversion:
             major, *version = str(args.otaversion).split(".")
 
-            try:
-                int(major)
-            except ValueError:
-                print("Error value %s can't be converted to integer" % major)
-                raise Exception("Error value %s can't be converted to integer" % major)
+            CheckIntOrRaiseException(major)
 
             if len(version) > 0:
                 minor = version[0]
+                CheckIntOrRaiseException(minor)
             else:
                 minor = "0"
 
             if len(version) > 1:
                 build = version[1]
+                CheckIntOrRaiseException(build)
             else:
                 build = "0"
 
