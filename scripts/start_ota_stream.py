@@ -80,6 +80,12 @@ class AWS_IoT_OTA:
         if args.otaversion:
             major, *version = str(args.otaversion).split(".")
 
+            try:
+                int(major)
+            except ValueError:
+                print("Error value %s can't be converted to integer" % major)
+                raise Exception("Error value %s can't be converted to integer" % major)
+
             if len(version) > 0:
                 minor = version[0]
             else:
@@ -131,7 +137,7 @@ class AWS_IoT_OTA:
 
                 # Break file path down so the version number can be appended to the file name
                 filepath = Path(self.BUILD_FILE_FULL_NAME)
-                basename = filepath.name.replace(filepath.suffix, '')
+                basename = filepath.stem
 
                 # This is the file name that will be uploaded to S3
                 self.APP_NAME = basename + "_" + self.constants["APP_VERSION_MAJOR"] + "." + \
