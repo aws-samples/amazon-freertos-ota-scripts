@@ -43,6 +43,8 @@ parser.add_argument("--codelocation", help="base FreeRTOS folder location (can b
                     default="../code/amazon-freertos/", required=False)
 parser.add_argument("--filelocation", help="OTA update file location when fileId is greater than 0",
                     default="update.bin", required=False)
+parser.add_argument("--otaversion", help="Version for custom FreeRTOS ota when fileId is 0 or secondary OTA when fileId is greater than 0",
+                    default="0.0.0", required=False)
 args = parser.parse_args()
 
 
@@ -71,11 +73,49 @@ class AWS_IoT_OTA:
                     pass
         #print ( repr(constants) )
 
+    """
+    Checks if a version number or raises an exception
+    """
+    def CheckIntOrRaiseException(self, value):
+        try:
+            int(value)
+        except ValueError:
+            raise Exception("Error value %s can't be converted to integer" % value)
+
+    """
+    Converts the passed in ota version to major, minor, and build version
+    """
+    def ConvertOTAVersionToMajorMinorBuild(self):
+        if args.otaversion:
+            major, *version = str(args.otaversion).split(".")
+
+            self.CheckIntOrRaiseException(major)
+
+            if len(version) > 0:
+                minor = version[0]
+                self.CheckIntOrRaiseException(minor)
+            else:
+                minor = "0"
+
+            if len(version) > 1:
+                build = version[1]
+                self.CheckIntOrRaiseException(build)
+            else:
+                build = "0"
+
+            self.constants["APP_VERSION_MAJOR"] = major
+            self.constants["APP_VERSION_MINOR"] = minor
+            self.constants["APP_VERSION_BUILD"] = build
+        else:
+            self.constants["APP_VERSION_MAJOR"] = "0"
+            self.constants["APP_VERSION_MINOR"] = "0"
+            self.constants["APP_VERSION_BUILD"] = "0"
+
     def BuildFirmwareFileNames(self):
 
         # Check if we are updating Processor 0 firmware and extract the versions from
         # the FreeRTOS header file
-        if args.fileId == 0:
+        if args.fileId == 0 and not args.otaversion:
             # Read constants from header and build the application name to be used for update
             self.ReadConstantsFromHeader()
 
@@ -96,19 +136,37 @@ class AWS_IoT_OTA:
                 sys.exit
         else:
             try:
-                # TODO provide ability to override the version for secondary processors
-                self.constants["APP_VERSION_MAJOR"] = "0"
-                self.constants["APP_VERSION_MINOR"] = "0"
-                self.constants["APP_VERSION_BUILD"] = "0"
+                # Extract out versions
+                self.ConvertOTAVersionToMajorMinorBuild()
+
+                # Set the build file output to the location passed in to filelocation
                 self.BUILD_FILE_FULL_NAME = args.filelocation
-                self.APP_FULL_NAME = args.filelocation
-                self.APP_NAME = args.filelocation
+
+                # Break file path down so the version number can be appended to the file name
+                filepath = Path(self.BUILD_FILE_FULL_NAME)
+                basename = filepath.stem
+
+                # This is the file name that will be uploaded to S3
+                self.APP_NAME = basename + "_" + self.constants["APP_VERSION_MAJOR"] + "." + \
+                    self.constants["APP_VERSION_MINOR"] + "." + \
+                    self.constants["APP_VERSION_BUILD"] + ".bin"
+
+                # Add the full path on to the new app name so we can copy the file
+                self.APP_FULL_NAME = Path.joinpath(filepath.parent, self.APP_NAME)
+                print("App Name: " + str(self.APP_NAME))
                 print("Using App Location: " + str(self.APP_FULL_NAME))
                 print("Build File Name: " + str(self.BUILD_FILE_FULL_NAME))
+
+                try:
+                    copyfile(self.BUILD_FILE_FULL_NAME, self.APP_FULL_NAME)
+                except Exception as e:
+                    print("Error copying %s" % self.BUILD_FILE_FULL_NAME)
+                    sys.exit
+
             except Exception as e:
                 print("Error building firmware file names" % args.filelocation)
                 sys.exit
-            
+
     # Copy the file to the s3 bucket
 
     def CopyFirmwareFileToS3(self):
