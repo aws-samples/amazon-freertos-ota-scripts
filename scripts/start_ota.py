@@ -51,7 +51,7 @@ class AWS_IoT_OTA:
     """
     def ReadConstantsFromHeader(self):
         self.DEMOS_PATH=Path(args.codelocation)
-        self.VERSIONFILE=self.DEMOS_PATH / Path("demos/include/aws_application_version.h")
+        self.VERSIONFILE=self.DEMOS_PATH / Path("demos/include/application_version.h")
         self.BUILD_PATH=self.DEMOS_PATH / Path("build/")
    
         with open(self.VERSIONFILE) as infile:
@@ -191,6 +191,7 @@ class AWS_IoT_OTA:
                 otaUpdateId=updateId,
                 targetSelection='SNAPSHOT',
                 files=files,
+                protocols=['MQTT', 'HTTP'],
                 targets=[target],
                 roleArn="arn:aws:iam::"+args.account+":role/"+args.role
             )
