@@ -29,7 +29,7 @@ parser.add_argument(
     "--profile", help="Profile name created using aws configure", required=True)
 parser.add_argument("--region", help="Region", default="", required=False)
 parser.add_argument("--account", help="Account ID", default="", required=False)
-parser.add_argument("--devicetype", help="thing|group",
+parser.add_argument("--devicetype", help="thing|thinggroup",
                     default="thing", required=False)
 parser.add_argument("--name", help="Name of thing/group", required=True)
 parser.add_argument("--role", help="Role for OTA updates", required=True)
